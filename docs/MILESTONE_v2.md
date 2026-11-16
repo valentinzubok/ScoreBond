@@ -11,7 +11,7 @@ accepts today (the old deployment stopped answering reads).
 | Base (accepted) | `8bc527acc6a65e90bd7dd095f73fd421c335d118` |
 | Code diff | `https://github.com/valentinzubok/ScoreBond/compare/8bc527acc6a65e90bd7dd095f73fd421c335d118...milestone-v2` |
 | New deployment | [`0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E`](https://explorer-studio-dev.genlayer.com/address/0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E) — code sha256 `501ef58c…b80b2`, equal to `contracts/ScoreBond.py` (CI) |
-| On-chain run | [`STUDIO_DEV_DEPLOY.md`](../STUDIO_DEV_DEPLOY.md): 31 transactions, 12 of them refused by design, 6 GEN of bonds settled, 1.5 GEN credit returned |
+| On-chain run | [`STUDIO_DEV_DEPLOY.md`](../STUDIO_DEV_DEPLOY.md): 31 transactions, 8 of them reverted by design and 2 more refused in the return value, 6 GEN of bonds settled, 1.5 GEN credit returned |
 | Tests | [`tests/test_scorebond.py`](../tests/test_scorebond.py): 92 in total (8 new for v2); `genvm-lint` clean in CI |
 
 ## New contract functionality
