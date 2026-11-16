@@ -1,6 +1,6 @@
 /** Live ScoreBond deploy on GenLayer Studio Dev (chain 61997). Override via env. */
 export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_SCOREBOND_ADDRESS ||
-  "0xb68dC2fF071862504aC325EA9F0261db3B53Da1b") as `0x${string}`;
+  "0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF") as `0x${string}`;
 
 /** Studio Dev / Studio Next — chain ID 61997. */
 export const CHAIN_ID = 61997;
