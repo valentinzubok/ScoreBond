@@ -75,7 +75,7 @@ and it is sent again.
 |---|---|
 | Console | **https://valentinzubok.github.io/ScoreBond/** (reads work with no wallet) |
 | Network | GenLayer Studio Dev / Studio Next — chain `61997` |
-| Contract | [`0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF`](https://explorer-studio-dev.genlayer.com/address/0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF) — CI checks the deployed code equals [`contracts/ScoreBond.py`](contracts/ScoreBond.py) |
+| Contract | [`0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E`](https://explorer-studio-dev.genlayer.com/address/0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E) — CI checks the deployed code equals [`contracts/ScoreBond.py`](contracts/ScoreBond.py) |
 | Deploy record | [`STUDIO_DEV_DEPLOY.md`](STUDIO_DEV_DEPLOY.md) — every transaction of the demo, including the refused ones |
 
 ## Demo delivery pages

@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | **Network** | GenLayer Studio Dev / Studio Next — chain `61997` |
-| **Contract** | [`0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF`](https://explorer-studio-dev.genlayer.com/address/0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF) |
-| **Deploy tx** | [`0xd4fab225…ab00550`](https://explorer-studio-dev.genlayer.com/tx/0xd4fab225e7f6cdc6e64cbe953767eb4fba6adba26b8394f1bf75e2743ab00550) from `0x057CF40AF02D68e221c90f11d51a34114B7EBf2c`, which has no role in the contract |
-| **Source** | [`contracts/ScoreBond.py`](contracts/ScoreBond.py) — runner `py-genlayer:babwp9t37jw9g4j2bccgn14g6x7x9s1f7dsmh7emvz735pz4zxa0` |
-| **Source sha256** | `a7b83c51adc1e708b0ad41cdd98d5cb444379c1965c7306574e8e928d9fa965b` |
+| **Contract** | [`0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E`](https://explorer-studio-dev.genlayer.com/address/0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E) |
+| **Deploy tx** | [`0xe88d21b7…364c3e`](https://explorer-studio-dev.genlayer.com/tx/0xe88d21b7843a176fbdd203217c047c88eb32d4c3d5de9fcb3e722c30a6364c3e) from `0x057CF40AF02D68e221c90f11d51a34114B7EBf2c`, which has no role in the contract |
+| **Source** | [`contracts/ScoreBond.py`](contracts/ScoreBond.py) — runner `py-genlayer:kzybg95x1gn21dw72m7hyg0maaap04n4nx55j9yt6fkdqxtz6bz0` |
+| **Source sha256** | `501ef58c2fc95272a0fbd053969c639848de00b601a360316e23f649c5eb80b2` |
 
 This is version 2. Version 1 (`0xb68d…`) is kept as [`docs/STUDIO_DEV_DEPLOY_v1.md`](docs/STUDIO_DEV_DEPLOY_v1.md).
 
@@ -25,19 +25,27 @@ readings 69 and 71 could land on different sides of the bar and move the whole b
 
 ```bash
 curl -s -X POST https://studio-dev.genlayer.com/api -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"gen_getContractCode","params":["0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF"]}' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"gen_getContractCode","params":["0x6Cd9CdA209dc5f6784a4B2A3327baFF72B7b728E"]}' \
   | python3 -c "import sys,json,base64,hashlib; print(hashlib.sha256(base64.b64decode(json.load(sys.stdin)['result'])).hexdigest())"
 shasum -a 256 contracts/ScoreBond.py
-# both print a7b83c51adc1e708b0ad41cdd98d5cb444379c1965c7306574e8e928d9fa965b
+# both print 501ef58c2fc95272a0fbd053969c639848de00b601a360316e23f649c5eb80b2
 ```
 
 CI runs the same comparison on every push (`scripts/verify_deployment.py`).
+
+## Runner
+
+On 2026-11-16 Studio Dev moved to GenVM v0.4 and stopped answering reads for contracts on the earlier runner
+(`invalid_contract runner malformed`). This is the same contract source, redeployed with the current
+runner from the [official runners page](https://sdk.genlayer.com/main/executors/v0.4/python-sdk/available-runners.html):
+`py-genlayer:kzybg95x1gn21dw72m7hyg0maaap04n4nx55j9yt6fkdqxtz6bz0` (the `# v0.3.0` header line is unchanged
+and accepted). The earlier deployment `0x6876d2E31a3fC15651D7e826dFeE430f1cD942AF` is no longer readable.
 
 ## Lint
 
 `sh scripts/lint_current_sdk.sh` — `genvm-lint lint` on the file as deployed, then `check` and `typecheck`
 on a copy whose header uses the runner bundled with the public linter (`1jb45aa8…`); the linter cannot
-yet download the current runner. The contract body is byte-identical. Passed, in CI.
+yet download the v0.4 runner. The contract body is byte-identical. Passed, in CI.
 
 ## The run
 
@@ -48,42 +56,42 @@ Delivery pages are files of this repository, read from `raw.githubusercontent.co
 
 | # | Call | Sender | Result | What happened | Tx |
 |---|------|--------|--------|---------------|----|
-| 1 | `open_bond(met-1)` value 2 GEN | provider | SUCCESS | `met-1`: 2 GEN, bar 70, 1 delivery, 1 scoring round, delivery window 300 s | [`0x0a28d688…4dcae1`](https://explorer-studio-dev.genlayer.com/tx/0x0a28d6886b39be72c7e6784abacbbedaedb7be225297904b279d27e1e14dcae1) |
-| 2 | `open_bond(breach-1)` value 3 GEN | provider | SUCCESS | `breach-1`: 3 GEN, bar 70, 2 deliveries (both must pass), 3 scoring rounds each, interval 60 s | [`0xf4b179fd…3b0d47`](https://explorer-studio-dev.genlayer.com/tx/0xf4b179fdd40c0e461e7920d41c2a208049c48e5b8fd56361c5b8c1d1df3b0d47) |
-| 3 | `open_bond(dl-1)` value 1 GEN | provider | SUCCESS | `dl-1`: 1 GEN, short windows (delivery 120 s, final deadline +180 s), for the deadline boundary | [`0x4eaa4851…84837b`](https://explorer-studio-dev.genlayer.com/tx/0x4eaa4851af2d5cdae3a0fc2a170ecac55c6da1546560c4d214e179774884837b) |
-| 4 | `open_bond(dust-1)` value 0.5 GEN | provider | SUCCESS | `dust-1`: 0.5 GEN, below the 1 GEN minimum: not escrowed, credited | [`0xa695da5d…78cdb9`](https://explorer-studio-dev.genlayer.com/tx/0xa695da5deeef1f03bf777041f07bd442c944b70722dd066999d9b050d678cdb9) |
-| 5 | `open_bond(self-1)` value 1 GEN | provider | SUCCESS | `self-1`: client = provider: not escrowed, 1 GEN credited | [`0x6b6550ee…fd2c25`](https://explorer-studio-dev.genlayer.com/tx/0x6b6550ee8fc0e70f96b74884a5c9dcb2a9c75bf173cde325e0723de49bfd2c25) |
-| 6 | `deliver(met-1)` | stranger | **ERROR** | `deliver(met-1)` by a stranger: **UserError** `only the provider may deliver` | [`0x847f003e…fea65a`](https://explorer-studio-dev.genlayer.com/tx/0x847f003e6035fe5781f98d7f15f9511a7b3b74c209cdddca0c3f3a96aafea65a) |
-| 7 | `deliver(dl-1)` | provider | SUCCESS | `dl-1` delivery frozen (`good-guide.md`) | [`0x3ad62f32…fe559a`](https://explorer-studio-dev.genlayer.com/tx/0x3ad62f32e1ade8ef1d399e3db75bb1f6d88b3d46660ee7fb682e72a3adfe559a) |
-| 8 | `expire(dl-1)` | stranger | **ERROR** | `expire(dl-1)` before the final deadline: **UserError** `the final deadline has not passed; expiry opens at 1794844905` | [`0x7b5e0851…9bc7ca`](https://explorer-studio-dev.genlayer.com/tx/0x7b5e085104feb1043087e3096d708ce6ef3e74e8cf725d39b4eb4b4f619bc7ca) |
-| 9 | `deliver(met-1)` | provider | **ERROR** | `long.md`: **UserError** `the delivery page has 6355 chars; at most 3000 so validators read all of it` | [`0x8878572c…674bff`](https://explorer-studio-dev.genlayer.com/tx/0x8878572cfd0b20d7e749211880f27c72787cab06e9400bdcc4794483ec674bff) |
-| 10 | `deliver(met-1)` | provider | SUCCESS | `met-1` delivery 1 frozen: `good-guide.md`, 750 characters, sha-256 `cd6a853d…` | [`0x40e193d8…2eb53e`](https://explorer-studio-dev.genlayer.com/tx/0x40e193d8775a39a32b36db6b5ff61f90362ec64d1aa66e1ca4e8413b7f2eb53e) |
-| 11 | `deliver(breach-1)` | provider | SUCCESS | `breach-1` delivery 1 frozen: `good-guide.md` | [`0xe8a1dfad…4a6d18`](https://explorer-studio-dev.genlayer.com/tx/0xe8a1dfadd75ab6405dda4fb29486be15ddf684cf2bb0754ce826e1ef4a4a6d18) |
-| 12 | `deliver(breach-1)` | provider | SUCCESS | `breach-1` delivery 2 frozen: `thin-guide.md` (86 characters, sha-256 `6d09f323…`) | [`0xff71c17a…1141ac`](https://explorer-studio-dev.genlayer.com/tx/0xff71c17a9e836b1e681398de0119b081d432ec487411d8ee0dd1cfd7341141ac) |
-| 13 | `settle(breach-1)` | stranger | **ERROR** | `settle(breach-1)` before anything is scored: **UserError** `delivery 1 is not scored yet` | [`0x334444c4…0507b0`](https://explorer-studio-dev.genlayer.com/tx/0x334444c46f9248840a98dadeb1424c1851ddbf9e306930c194e657d15c0507b0) |
-| 14 | `score(met-1, 1)` | stranger | SUCCESS | `met-1` delivery 1, round 1 (15:58:32 UTC): scored 100, `passes` true → final score 100 | [`0x0f78dd74…0746cc`](https://explorer-studio-dev.genlayer.com/tx/0x0f78dd74b2dd5843bd516698246ae251f2d64e27ac34f48b26ac4d4f360746cc) |
-| 15 | `settle(met-1)` | stranger | SUCCESS | `settle(met-1)`: 1 of 1 deliveries reached the bar → **MET**, beneficiary the provider | [`0x8d4b8d5b…4b65bf`](https://explorer-studio-dev.genlayer.com/tx/0x8d4b8d5bfcce4e15fff0d88b967ebfb36c6b81c43a1e71227cc3dc071b4b65bf) |
-| 16 | `withdraw(met-1)` | client | **ERROR** | `withdraw(met-1)` by the client: **UserError** `only the party the outcome names may withdraw` | [`0x462e8ca9…eef57a`](https://explorer-studio-dev.genlayer.com/tx/0x462e8ca9f7f42772f18402381603fe6e13555055bb69563ac1188aec8eeef57a) |
-| 17 | `withdraw(met-1)` | provider | SUCCESS | the provider takes the 2 GEN bond back | [`0xe1f72fb5…6b7079`](https://explorer-studio-dev.genlayer.com/tx/0xe1f72fb5eb4261158f2af087a79fd337c435365719c34189d899c582036b7079) |
-| 18 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 1 (16:01:01 UTC): scored 100 | [`0x71d75e0c…a603d2`](https://explorer-studio-dev.genlayer.com/tx/0x71d75e0c222d821241171cc34669292dbbc287c446c6e12c2b6ed36a79a603d2) |
-| 19 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 1 (16:02:28 UTC): scored 8, `passes` false | [`0x049f693e…a5681d`](https://explorer-studio-dev.genlayer.com/tx/0x049f693e1dad8786000c1840f4579865583353abfac5d53a0a3981544da5681d) |
-| 20 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 2 (16:02:52 UTC): scored 100 | [`0x4e18ec9e…a6aad8`](https://explorer-studio-dev.genlayer.com/tx/0x4e18ec9e8de50b44242628c9c731f132f8e552df1c71a82d0b774d94b3a6aad8) |
-| 21 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 2 (16:03:34 UTC): scored 15, `passes` false | [`0x2517e594…6c478a`](https://explorer-studio-dev.genlayer.com/tx/0x2517e5949d28a6a47a34a55e7510eaad1a76fa15e23c8baeed82ca301b6c478a) |
-| 22 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 3 (16:04:14 UTC): scored 95 → final score 100 (median of 100, 100, 95) | [`0xbdaae7c0…3e9d8b`](https://explorer-studio-dev.genlayer.com/tx/0xbdaae7c0371e1c5518e7bd7bcabc2fcc8b7a6a09ea6652a086e8e6b3733e9d8b) |
-| 23 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 3 (16:04:54 UTC): scored 10 → final score 10 (median of 8, 15, 10) | [`0x84c4e39c…d5a866`](https://explorer-studio-dev.genlayer.com/tx/0x84c4e39cdcc4b83621a1818403d0bf8d679820813ff7235e9cd7931820d5a866) |
-| 24 | `settle(breach-1)` | stranger | SUCCESS | `settle(breach-1)`: 1 of 2 deliveries reached the bar (needed 2) → **BREACHED**, beneficiary the client | [`0xc07c5133…03abde`](https://explorer-studio-dev.genlayer.com/tx/0xc07c513381084e760ca1397c85bdac2e4a2cb61d3228a87e865461a5ca03abde) |
-| 25 | `withdraw(breach-1)` | provider | **ERROR** | `withdraw(breach-1)` by the provider: **UserError** `only the party the outcome names may withdraw` | [`0xcda961f9…96e385`](https://explorer-studio-dev.genlayer.com/tx/0xcda961f9c3dc68333ddcc46d230d20daa14113ec30a10b8017891e536296e385) |
-| 26 | `withdraw(breach-1)` | client | SUCCESS | the client takes the 3 GEN bond | [`0x981b2dbd…5d7cb2`](https://explorer-studio-dev.genlayer.com/tx/0x981b2dbd9093213ef1bc99f9ce55711e893bdddee09a5be05e6cedaab25d7cb2) |
-| 27 | `score(dl-1, 1)` | stranger | **ERROR** | `score(dl-1, 1)` after the final deadline: **UserError** `the final deadline has passed at 1794844905; only expire is accepted` | [`0x31a59e5b…2d0fec`](https://explorer-studio-dev.genlayer.com/tx/0x31a59e5b41d67ab5d34acc106b62519d064953fc4d3213d3f0b00947a92d0fec) |
-| 28 | `settle(dl-1)` | stranger | **ERROR** | `settle(dl-1)` after the final deadline: **UserError** `the final deadline has passed at 1794844905; only expire is accepted` | [`0x103e9d11…3227d2`](https://explorer-studio-dev.genlayer.com/tx/0x103e9d111101ebfb5430bfccabf25ba4722f42bbf51c4b6cfa3df74d0e3227d2) |
-| 29 | `expire(dl-1)` | stranger | SUCCESS | `expire(dl-1)` → VOID (the delivery was never scored) | [`0x62cedfe7…3a3c3d`](https://explorer-studio-dev.genlayer.com/tx/0x62cedfe787035fc02b86f32be7bb0f39ae0302357f51a3885f6a6e56f83a3c3d) |
-| 30 | `withdraw(dl-1)` | provider | SUCCESS | the provider takes the unscored 1 GEN bond back | [`0x730b8552…8ec980`](https://explorer-studio-dev.genlayer.com/tx/0x730b8552f94b888aec30cb8fa9f57d2d9c9f930c606a4281a9814703168ec980) |
-| 31 | `withdraw_credit()` | provider | SUCCESS | credit from the two refused bonds: 1.5 GEN | [`0x16ddb996…670f93`](https://explorer-studio-dev.genlayer.com/tx/0x16ddb996e7b688af4b6f415b96c2dbe94735fed77dc4c144753ca95cdc670f93) |
+| 1 | `open_bond(met-1)` value 2 GEN | provider | SUCCESS | `met-1`: 2 GEN, bar 70, 1 delivery, 1 scoring round, delivery window 300 s | [`0x43cd8973…345fb5`](https://explorer-studio-dev.genlayer.com/tx/0x43cd89734943019666e7fea2c171ebba5517b4e753f2b2c953befea5d9345fb5) |
+| 2 | `open_bond(breach-1)` value 3 GEN | provider | SUCCESS | `breach-1`: 3 GEN, bar 70, 2 deliveries (both must pass), 3 scoring rounds each, interval 60 s | [`0xbb701b9a…ee0c04`](https://explorer-studio-dev.genlayer.com/tx/0xbb701b9a5ebcb148f7466731d2ef496fc3c8ff5a07eca19c25d5aa20d9ee0c04) |
+| 3 | `open_bond(dl-1)` value 1 GEN | provider | SUCCESS | `dl-1`: 1 GEN, short windows (delivery 120 s, final deadline +180 s), for the deadline boundary | [`0xd060baa0…aee6f5`](https://explorer-studio-dev.genlayer.com/tx/0xd060baa03c4355a57b15a45ae570237d6d828cb505fb7d005a2046dff9aee6f5) |
+| 4 | `open_bond(dust-1)` value 0.5 GEN | provider | SUCCESS | `dust-1`: 0.5 GEN, below the 1 GEN minimum: not escrowed, credited | [`0x9191d66c…a577af`](https://explorer-studio-dev.genlayer.com/tx/0x9191d66c7ff24cba72ca26deb0325a1b256970061216670768e3f76972a577af) |
+| 5 | `open_bond(self-1)` value 1 GEN | provider | SUCCESS | `self-1`: client = provider: not escrowed, 1 GEN credited | [`0xf401be4a…7bbf96`](https://explorer-studio-dev.genlayer.com/tx/0xf401be4a0367c20433016b89d8e12c77aa7fe000e634440943481743957bbf96) |
+| 6 | `deliver(met-1)` | stranger | **ERROR** | `deliver(met-1)` by a stranger: **UserError** `only the provider may deliver` | [`0x59e1c8eb…d9783b`](https://explorer-studio-dev.genlayer.com/tx/0x59e1c8ebe7a9de4bdda80dabaeef7e17f008d1582aead9a47c27ffff69d9783b) |
+| 7 | `deliver(dl-1)` | provider | SUCCESS | `dl-1` delivery frozen (`good-guide.md`) | [`0xd56765a9…3fd4ca`](https://explorer-studio-dev.genlayer.com/tx/0xd56765a9f950702e91ead3635f1d215657624a39c67dff770dc974b01b3fd4ca) |
+| 8 | `expire(dl-1)` | stranger | **ERROR** | `expire(dl-1)` before the final deadline: **UserError** `the final deadline has not passed; expiry opens at 1794855427` | [`0xfccb116f…e986ee`](https://explorer-studio-dev.genlayer.com/tx/0xfccb116f50b0f8d30ea6cd16312c6af1c7bad65faf6a7127da70430097e986ee) |
+| 9 | `deliver(met-1)` | provider | **ERROR** | `long.md`: **UserError** `the delivery page has 6355 chars; at most 3000 so validators read all of it` | [`0x67517a0f…d48c0f`](https://explorer-studio-dev.genlayer.com/tx/0x67517a0ff7bd940b3450b04d0c8777fc9706801acbf8167eb4e4fe928ed48c0f) |
+| 10 | `deliver(met-1)` | provider | SUCCESS | `met-1` delivery 1 frozen: `good-guide.md`, 750 characters, sha-256 `cd6a853d…` | [`0x1580bec5…83e513`](https://explorer-studio-dev.genlayer.com/tx/0x1580bec52d9a94539da553e9947fbd5ce0befbf56be8dc8eb829115f9483e513) |
+| 11 | `deliver(breach-1)` | provider | SUCCESS | `breach-1` delivery 1 frozen: `good-guide.md` | [`0xa1ef6994…27e5f7`](https://explorer-studio-dev.genlayer.com/tx/0xa1ef6994cfd727f82ec9b70f0e896cec84bde38bc18c10d01f296c751027e5f7) |
+| 12 | `deliver(breach-1)` | provider | SUCCESS | `breach-1` delivery 2 frozen: `thin-guide.md` (86 characters, sha-256 `6d09f323…`) | [`0x611eaab9…4da829`](https://explorer-studio-dev.genlayer.com/tx/0x611eaab96642edf12399d90d9e7e39fe87caa85a9ac5155f44378e383d4da829) |
+| 13 | `settle(breach-1)` | stranger | **ERROR** | `settle(breach-1)` before anything is scored: **UserError** `delivery 1 is not scored yet` | [`0xaf9ccefc…312437`](https://explorer-studio-dev.genlayer.com/tx/0xaf9ccefc9f36f13fe073620a396ef5fb9ffcb44978befd3463e57eddbc312437) |
+| 14 | `score(met-1, 1)` | stranger | SUCCESS | `met-1` delivery 1, round 1 (18:53:54 UTC): scored 100, `passes` true → final score 100 | [`0xced6207f…6c4141`](https://explorer-studio-dev.genlayer.com/tx/0xced6207f52b4f3f7d19edb51ce11b4de2c8d06631f2bb6aa1994c04a066c4141) |
+| 15 | `settle(met-1)` | stranger | SUCCESS | `settle(met-1)`: 1 of 1 deliveries reached the bar → **MET**, beneficiary the provider | [`0x15a9541d…8fb466`](https://explorer-studio-dev.genlayer.com/tx/0x15a9541df5e41db23464354c1379841a18a93b69f45a810d1fef63cb088fb466) |
+| 16 | `withdraw(met-1)` | client | **ERROR** | `withdraw(met-1)` by the client: **UserError** `only the party the outcome names may withdraw` | [`0x2acac43a…b0c46c`](https://explorer-studio-dev.genlayer.com/tx/0x2acac43aaa0c36ef618c0153b0e697a74c9f21cbd4e2489bfc0a3d38bbb0c46c) |
+| 17 | `withdraw(met-1)` | provider | SUCCESS | the provider takes the 2 GEN bond back | [`0x41dcb545…b5ee14`](https://explorer-studio-dev.genlayer.com/tx/0x41dcb545b085219e66ed8982cd69675b99715b3ccc3c20219568bdd66eb5ee14) |
+| 18 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 1 (18:56:28 UTC): scored 100 | [`0x2d32af57…fb80e0`](https://explorer-studio-dev.genlayer.com/tx/0x2d32af571a7f5a4240d535c06799a7e61568cb4424960739fa0a7c4e5efb80e0) |
+| 19 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 1 (18:56:50 UTC): scored 10, `passes` false | [`0xdd6deeb2…cf4fb7`](https://explorer-studio-dev.genlayer.com/tx/0xdd6deeb2dc8b17e4338878986ff14c38964bbb90ef8260ae2bea644ff7cf4fb7) |
+| 20 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 2 (18:57:33 UTC): scored 100 | [`0x2585accd…e54940`](https://explorer-studio-dev.genlayer.com/tx/0x2585accd59372d6ded9df773cbb30f09a39a7d2f036799c9da33cfcb47e54940) |
+| 21 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 2 (18:57:55 UTC): scored 15, `passes` false | [`0x2f2bfad7…a7db60`](https://explorer-studio-dev.genlayer.com/tx/0x2f2bfad7fab070902769e219b8d573b0b773bae353a23862a11452f34ba7db60) |
+| 22 | `score(breach-1, 1)` | stranger | SUCCESS | `breach-1` delivery 1, round 3 (18:59:10 UTC): scored 100 → final score 100 (median of 100, 100, 100) | [`0xff12a975…f3f179`](https://explorer-studio-dev.genlayer.com/tx/0xff12a975f7e95f3918cb964544cdc66caa4486bfcec09c54d0e5ca88d8f3f179) |
+| 23 | `score(breach-1, 2)` | stranger | SUCCESS | `breach-1` delivery 2, round 3 (18:59:36 UTC): scored 15 → final score 15 (median of 10, 15, 15) | [`0x45c53533…6c4a84`](https://explorer-studio-dev.genlayer.com/tx/0x45c5353369206aacc12e5026f20cc6f37cef7bcdd168fe38ab2d6153c16c4a84) |
+| 24 | `settle(breach-1)` | stranger | SUCCESS | `settle(breach-1)`: 1 of 2 deliveries reached the bar (needed 2) → **BREACHED**, beneficiary the client | [`0x860a323d…f310d0`](https://explorer-studio-dev.genlayer.com/tx/0x860a323d59ef2c74147df0580b2d6fec01f269f6f903ba355bca2e8a14f310d0) |
+| 25 | `withdraw(breach-1)` | provider | **ERROR** | `withdraw(breach-1)` by the provider: **UserError** `only the party the outcome names may withdraw` | [`0x2a2da892…b3597d`](https://explorer-studio-dev.genlayer.com/tx/0x2a2da892b6a56d6542c4a94f61835027560c491e9515895a4017d9610db3597d) |
+| 26 | `withdraw(breach-1)` | client | SUCCESS | the client takes the 3 GEN bond | [`0x6cd0a6fb…ccbffe`](https://explorer-studio-dev.genlayer.com/tx/0x6cd0a6fb364a1d35b37cbc84ed4f94c3b699f00e53c6b9edb8908cabc3ccbffe) |
+| 27 | `score(dl-1, 1)` | stranger | **ERROR** | `score(dl-1, 1)` after the final deadline: **UserError** `the final deadline has passed at 1794855427; only expire is accepted` | [`0xaa051eac…8e1a5e`](https://explorer-studio-dev.genlayer.com/tx/0xaa051eac1426682f44c7ed4d9a52fe24936a5e3a3d425bb83bc2a904cb8e1a5e) |
+| 28 | `settle(dl-1)` | stranger | **ERROR** | `settle(dl-1)` after the final deadline: **UserError** `the final deadline has passed at 1794855427; only expire is accepted` | [`0xc10f1d1f…26df5e`](https://explorer-studio-dev.genlayer.com/tx/0xc10f1d1f010fea0184fab126f7c68068e98b4a860180e36a6dbb57786c26df5e) |
+| 29 | `expire(dl-1)` | stranger | SUCCESS | `expire(dl-1)` → VOID (the delivery was never scored) | [`0x0b70a609…79f8b2`](https://explorer-studio-dev.genlayer.com/tx/0x0b70a609db8eb904f619f6526156f18d81aff4e65b77f2859e0429384179f8b2) |
+| 30 | `withdraw(dl-1)` | provider | SUCCESS | the provider takes the unscored 1 GEN bond back | [`0x02174710…66102d`](https://explorer-studio-dev.genlayer.com/tx/0x0217471095da4eb7492f40a278a0d283f6208e6d6c4689f5086f65d2c666102d) |
+| 31 | `withdraw_credit()` | provider | SUCCESS | credit from the two refused bonds: 1.5 GEN | [`0x94a6ad38…d073de`](https://explorer-studio-dev.genlayer.com/tx/0x94a6ad38350a736d39b77aa8d8bd5f2de2f9273b63afc3a7e6a3f33667d073de) |
 
 ### What the run shows
 
 * **The sums are the contract's.** `met-1`: one reading, 100, bar 70 → MET. `breach-1`: delivery 1 read
-  100, 100, 95 (median 100); delivery 2, the one-line guide, read 8, 15, 10 (median 10). Only 1 of the 2
+  100, 100, 100 (median 100); delivery 2, the one-line guide, read 10, 15, 15 (median 15). Only 1 of the 2
   deliveries reached the bar, so the bond is BREACHED and the client took the 3 GEN.
 * **The median is computed in code.** Every reading is kept by `get_round` with the page hash, the
   `passes` flag and injection flags.
