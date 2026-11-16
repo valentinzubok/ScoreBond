@@ -19,7 +19,8 @@ export type Bond = {
   delivered: number;
   scored: number;
   total_score: number;
-  needed_score: number;
+  passed: number;
+  passes_required: number;
   beneficiary: string;
   settled_at: number;
   paid: boolean;
@@ -50,6 +51,7 @@ export type RoundRecord = {
   finding: "scored" | "unscored";
   reason: string;
   score: number;
+  passes: boolean;
   outcome: "counted" | "final" | "no_score";
   final_score: number;
   injection_flags: string[];

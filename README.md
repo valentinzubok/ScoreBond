@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>A service guarantee: validators score each delivery against a fixed rubric, the contract does the sums, and the bond goes to whoever the total names.</strong>
+  <strong>A service guarantee: validators score each delivery against a fixed rubric, the validators must agree on whether it reaches the bar, and the bond goes to whoever the result names.</strong>
 </p>
 
 <p align="center">
@@ -34,12 +34,13 @@ deliver(bond_id, url)    the provider only, strictly BEFORE the delivery deadlin
                          the page (at most 3000 characters) is frozen whole on chain
 score(bond_id, n)        anyone: one scoring round of delivery n, a full interval after the
                          previous round of that delivery, before the final deadline.
-                         Validators answer a whole number 0-100; with 3 rounds the MEDIAN is the
-                         delivery's final score, chosen in code
+                         Validators answer a whole number 0-100 AND must agree on `passes` (does it
+                         reach the bar); scores on opposite sides of the bar are a disagreement and
+                         the round reverts. With 3 rounds the MEDIAN is the delivery's final score
 settle(bond_id)          anyone, before the final deadline, once every delivery made is scored and
                          the promised deliveries are in or the delivery deadline has passed.
-                         total >= pass_score x deliveries -> MET (provider keeps the bond)
-                         below -> BREACHED (the client takes it); a missing delivery counts 0
+                         every promised delivery reached the bar -> MET (provider keeps the bond)
+                         otherwise -> BREACHED (the client takes it); a missing delivery cannot pass
 expire(bond_id)          anyone, AT or after the final deadline, if not settled: VOID, the bond
                          returns to the provider
 withdraw(bond_id)        the party the outcome names, once
@@ -54,17 +55,19 @@ list_bonds(offset, limit) / get_events(offset, limit)      paged, no global cap
 |---|---|
 | What are the work and the bar? | The rubric, the bar per delivery, the number of deliveries and the deadlines are fixed when the bond is posted; there are no setters and no owner. |
 | Can the page talk the model into a good mark? | The page is fenced as untrusted data and instruction-like phrasing is flagged and stored with every round. The model only proposes a whole number 0-100; a string, a float, a boolean or a number out of range counts for nothing. |
+| Can a few points of disagreement decide the bond? | No: every score difference that could change settlement is bound. Validators must agree on `passes`, whether the score reaches the bar. A pair of scores on opposite sides of the bar is a disagreement, the round reverts and records nothing, and is sent again. The contract also re-checks `passes == (score >= bar)`. The 10-point spread allowed on the score itself cannot move the bond. |
 | Can one odd reading decide the bond? | With `score_rounds = 3` the final score of a delivery is the **median** of three readings a full interval apart, computed in code. An odd number of rounds is required, so the median is always one real reading. |
 | What is scored? | The page frozen whole when the provider delivered it (at most 3000 characters, so validators read all of it). Editing the live page afterwards changes nothing. |
 | What if validators cannot score? | An `unscored` round counts for nothing and is kept as evidence. A delivery nobody could score by the final deadline ends the bond VOID: the bond returns to the provider. |
-| Can the provider skip a delivery? | A promised delivery that never came counts 0 in the total. |
+| Can the provider skip a delivery? | A promised delivery that never came cannot pass, so the bond is breached. Settlement counts deliveries that reached the bar, not a sum of scores, so one strong delivery cannot cover a failed one. |
 | Can transaction order choose who is paid? | No. `score` and `settle` work only before the final deadline and `expire` only at or after it; `get_schedule` never offers both. |
 | Can the registry fill up? | No cap: bonds, deliveries, rounds and events live in `TreeMap`s with a `DynArray` index; a bond costs at least 1 GEN; views are paged. |
 | A refused call that swallows money? | Payable calls never raise once value is attached: what cannot be escrowed becomes a credit and `withdraw_credit` pays it back. |
 
 **What you still trust:** that the rubric asks for what you were promised (the provider writes it:
-read it before you buy the service), and that validators' scores of the same page stay close to each
-other. Scores vary a little between readings; consensus allows a spread of 10 points.
+read it before you buy the service), and that validators agree on which side of the bar the work falls.
+Scores vary a little between readings; a borderline score does not settle on luck, it makes the round fail
+and it is sent again.
 
 ## Live
 
@@ -105,12 +108,13 @@ npm run dev     # http://localhost:3021
 
 ```bash
 pip install -r requirements-dev.txt
-python3 -m pytest -q      # 84 tests
+python3 -m pytest -q      # 92 tests
 ```
 
 [`tests/test_scorebond.py`](tests/test_scorebond.py): the outcomes and who may collect; ten kinds of
 score the code refuses; the median of three rounds; unscored and broken answers; a forged consensus
-answer; several deliveries and the total against `bar x deliveries`; a missing delivery counting 0;
+answer; the consensus principle binding `passes` and the exact boundary at the bar; several deliveries that must each reach the bar
+(a high total cannot cover a failed one); a missing delivery that cannot pass;
 who may deliver; the frozen page and fencing of injected text; intervals; the final deadline (one
 second before, at, after; competing calls; the schedule at every second); evidence kept per round; no
 registry cap; 16 refused bonds credited; and the books balancing through a 240-step random run.

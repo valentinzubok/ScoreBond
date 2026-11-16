@@ -83,7 +83,7 @@ function Flow() {
       </div>
       <div className="lane">
         <span>sum</span>
-        <span className="bar no">median of the rounds · total vs bar × deliveries</span>
+        <span className="bar no">median of the rounds · every delivery must reach the bar</span>
       </div>
       <p className="gap">⋮ the code does the sums, before the final deadline</p>
       <div className="lane">
@@ -191,8 +191,8 @@ function BondCard({
       </p>
       <p className="claimtext">{b.title}</p>
       <p className="hashline">
-        bond {fmtGen(b.bond)} GEN · provider {short(b.provider)} · client {short(b.client)} · bar {b.pass_score}/100 per delivery · total
-        needed {b.needed_score} · {b.deliveries_required} deliver{b.deliveries_required === 1 ? "y" : "ies"} promised
+        bond {fmtGen(b.bond)} GEN · provider {short(b.provider)} · client {short(b.client)} · bar {b.pass_score}/100 on each of the{" "}
+        {b.deliveries_required} promised deliver{b.deliveries_required === 1 ? "y" : "ies"}
       </p>
       <p className="hashline">
         deliveries until {utc(b.delivery_deadline)} · final deadline {utc(b.final_deadline)} · {b.score_rounds} scoring round
@@ -217,7 +217,7 @@ function BondCard({
       )}
       {b.status !== "open" && b.total_score >= 0 && (
         <p className="hashline">
-          total score {b.total_score} vs {b.needed_score} needed ({b.delivered} of {b.deliveries_required} delivered; a missing one counts 0)
+          {b.passed} of {b.passes_required} deliveries reached the bar ({b.delivered} delivered; one that never came cannot pass; scores add up to {b.total_score})
         </p>
       )}
       {sch?.can_deliver && same(b.provider) && (
@@ -424,7 +424,7 @@ export function ScoreBondApp() {
             A provider promises quality and backs it with a bond. Nobody argues afterwards: each
             delivery is <strong>frozen whole on chain</strong>, validators <strong>score it 0–100</strong>{" "}
             against a rubric fixed when the bond was posted, and the <strong>contract does the sums</strong>{" "}
-            (median of the rounds, total against the bar). Reach the bar and the provider keeps the
+            (median of the rounds; every delivery has to reach the bar). Reach the bar and the provider keeps the
             bond; fall short and the client takes it.
           </p>
           <div className="chips">
@@ -513,8 +513,8 @@ export function ScoreBondApp() {
             service, it is exactly what validators will score against.
           </li>
           <li>
-            <span className="tag">the score</span> validators only propose a whole number 0–100; anything
-            else counts for nothing. With three rounds the <strong>median</strong> is used, chosen in
+            <span className="tag">the score</span> validators only propose a whole number 0–100 and must agree on
+            whether it reaches the bar; anything else counts for nothing. With three rounds the <strong>median</strong> is used, chosen in
             code, so one odd reading cannot decide. Scores can vary a little between readings.
           </li>
           <li>

@@ -25,12 +25,15 @@ from datetime import datetime, timezone
 #               MAX_PAGE_CHARS, so validators read all of it) is frozen whole on chain.
 #   score       anyone, one scoring round of one delivery, a full round_interval after the
 #               previous round of that delivery, before the final deadline. Validators score the
-#               frozen page 0-100 against the rubric; the scores of the (odd number of) rounds
-#               are combined by their MEDIAN, in code, so one odd reading cannot decide.
+#               frozen page 0-100 against the rubric and MUST AGREE ON `passes` (does the score
+#               reach the bar): two scores on opposite sides of the bar are a disagreement, the
+#               round reverts and records nothing, so no luck of a few points can decide a bond.
+#               The scores of the (odd number of) rounds are combined by their MEDIAN, in code.
 #   settle      anyone, before the final deadline, once every delivery made is scored and either
-#               all promised deliveries are in or the delivery deadline has passed. The total
-#               score counts a missing delivery as 0. total >= pass_score * deliveries -> the
-#               provider gets the bond back (MET); below -> the client gets it (BREACHED).
+#               all promised deliveries are in or the delivery deadline has passed. Every promised
+#               delivery must reach the bar, each decided by that agreed fact; a delivery that
+#               never came cannot pass. All pass -> the provider gets the bond back (MET);
+#               otherwise the client gets it (BREACHED).
 #   expire      anyone, AT or after the final deadline, if not settled: VOID, the provider's bond
 #               returns to the provider. settle and expire never overlap: transaction order
 #               cannot choose who is paid.
@@ -269,9 +272,15 @@ def median(values: list) -> int:
     return ordered[len(ordered) // 2]
 
 
-def total_score(bond: dict, deliveries: list) -> int:
-    """Sum of the final scores; a promised delivery that never came counts as 0."""
+def total_score(deliveries: list) -> int:
+    """Sum of the final scores. Informational: settlement uses passing_count, not the sum."""
     return sum(int(d["final_score"]) for d in deliveries)
+
+
+def passing_count(bar: int, deliveries: list) -> int:
+    """Deliveries whose final score reaches the bar. A promised delivery that never came
+    is simply not in the list, so it cannot pass."""
+    return sum(1 for d in deliveries if int(d["final_score"]) >= int(bar))
 
 
 def build_prompt(bond: dict, delivery: dict, flags: list) -> str:
@@ -332,7 +341,14 @@ def score_once(bond: dict, delivery: dict, flags: list) -> str:
     if score is None:
         out["reason"] = "bad_score"
         return _dump(out)
-    return _dump({"finding": FINDING_SCORED, "reason": "", "score": score})
+    return _dump(
+        {
+            "finding": FINDING_SCORED,
+            "reason": "",
+            "score": score,
+            "passes": score >= int(bond["pass_score"]),
+        }
+    )
 
 
 def decide_score(bond: dict, delivery: dict, flags: list) -> dict:
@@ -344,9 +360,10 @@ def decide_score(bond: dict, delivery: dict, flags: list) -> dict:
     answer = gl.eq_principle.prompt_comparative(
         leader_fn,
         "The field `finding` must be identical across validators and be exactly 'scored' or "
-        "'unscored'. When it is 'scored', the integer `score` may differ by at most "
+        "'unscored'. When it is 'scored', the boolean `passes` (the score reaches the bar) must be "
+        "identical across validators, and the integer `score` may differ by at most "
         + str(SCORE_TOLERANCE)
-        + " points.",
+        + " points. A pair of scores on opposite sides of the bar is a disagreement.",
     )
     try:
         data = json.loads(answer) if isinstance(answer, str) else answer
@@ -354,8 +371,10 @@ def decide_score(bond: dict, delivery: dict, flags: list) -> dict:
         data = None
     if not isinstance(data, dict) or str(data.get("finding")) not in FINDINGS:
         raise gl.vm.UserError("validators did not return a valid finding")
-    if data["finding"] == FINDING_SCORED and literal_score(data.get("score")) is None:
-        raise gl.vm.UserError("the agreed score failed the contract's own check")
+    if data["finding"] == FINDING_SCORED:
+        agreed = literal_score(data.get("score"))
+        if agreed is None or data.get("passes") is not (agreed >= int(bond["pass_score"])):
+            raise gl.vm.UserError("the agreed score failed the contract's own check")
     return data
 
 
@@ -492,7 +511,8 @@ class ScoreBond(gl.contract.Contract):
             "delivered": 0,
             "scored": 0,
             "total_score": -1,
-            "needed_score": bar * promised,
+            "passed": -1,
+            "passes_required": promised,
             "beneficiary": "",
             "settled_at": 0,
             "paid": False,
@@ -602,6 +622,7 @@ class ScoreBond(gl.contract.Contract):
             "finding": finding,
             "reason": str(data.get("reason", "")),
             "score": int(data["score"]) if finding == FINDING_SCORED else -1,
+            "passes": bool(data.get("passes")) if finding == FINDING_SCORED else False,
             "outcome": outcome,
             "final_score": int(delivery["final_score"]),
             "injection_flags": flags[:6],
@@ -648,8 +669,10 @@ class ScoreBond(gl.contract.Contract):
         for d in deliveries:
             if int(d["final_score"]) < 0:
                 raise gl.vm.UserError("delivery " + str(d["n"]) + " is not scored yet")
-        total = total_score(bond, deliveries)
-        met = total >= int(bond["needed_score"])
+        passed = passing_count(int(bond["pass_score"]), deliveries)
+        met = passed >= int(bond["passes_required"])
+        total = total_score(deliveries)
+        bond["passed"] = passed
         bond["total_score"] = total
         bond["status"] = STATUS_MET if met else STATUS_BREACHED
         bond["beneficiary"] = bond["provider"] if met else bond["client"]
@@ -660,15 +683,16 @@ class ScoreBond(gl.contract.Contract):
             {
                 "bond_id": bid,
                 "status": bond["status"],
-                "total": total,
-                "needed": int(bond["needed_score"]),
+                "passed": passed,
+                "required": int(bond["passes_required"]),
             },
         )
         return _dump(
             {
                 "status": bond["status"],
+                "passed": passed,
+                "required": int(bond["passes_required"]),
                 "total": total,
-                "needed": int(bond["needed_score"]),
                 "beneficiary": bond["beneficiary"],
             }
         )

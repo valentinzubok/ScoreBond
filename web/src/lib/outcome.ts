@@ -83,8 +83,8 @@ export function roundOutcome(roundsBefore: number, round: RoundSeen): Outcome {
 
 /** After settle: the bond must have left "open". */
 export function settleOutcome(status: string): Outcome {
-  if (status === "met") return { verdict: "done", title: "Bond MET", detail: "The total score reached the bar: the provider takes the bond back." };
-  if (status === "breached") return { verdict: "done", title: "Bond BREACHED", detail: "The total score fell short: the client takes the bond." };
+  if (status === "met") return { verdict: "done", title: "Bond MET", detail: "Every promised delivery reached the bar: the provider takes the bond back." };
+  if (status === "breached") return { verdict: "done", title: "Bond BREACHED", detail: "At least one promised delivery fell short of the bar or never came: the client takes the bond." };
   return { verdict: "pending", title: "Waiting for the chain", detail: "The bond is not settled yet. Refresh after finalization." };
 }
 

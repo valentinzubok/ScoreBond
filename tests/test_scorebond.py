@@ -303,30 +303,31 @@ def test_the_median_helper_picks_a_real_middle_reading():
 # -- several deliveries, missing deliveries ------------------------------------------
 
 
-def test_every_delivery_counts_and_the_total_is_compared_with_bar_times_deliveries(env):
+def test_every_promised_delivery_must_reach_the_bar(env):
     mod, gl, c = env
     open_b(gl, c, promised="3", bar="70")
     for url in (D1, D2, D3):
         deliver(gl, c, url=url)
-    for n, s in ((1, 100), (2, 70), (3, 40)):  # total 210 = 70 * 3
+    for n, s in ((1, 100), (2, 70), (3, 70)):  # the bar itself passes
         gl.llm_reply = reply(s)
         score(gl, c, n=n)
     out = settle(gl, c)
-    assert out["total"] == 210 and out["needed"] == 210 and out["status"] == "met"
+    assert out["passed"] == 3 and out["required"] == 3 and out["status"] == "met"
 
 
-def test_one_point_short_of_the_total_breaches(env):
+def test_one_point_short_on_one_delivery_breaches_even_with_a_high_total(env):
     mod, gl, c = env
     open_b(gl, c, promised="3", bar="70")
     for url in (D1, D2, D3):
         deliver(gl, c, url=url)
-    for n, s in ((1, 100), (2, 70), (3, 39)):
+    for n, s in ((1, 100), (2, 100), (3, 69)):  # total 269 is far above 210
         gl.llm_reply = reply(s)
         score(gl, c, n=n)
-    assert settle(gl, c)["status"] == "breached"
+    out = settle(gl, c)
+    assert out["status"] == "breached" and out["passed"] == 2 and out["total"] == 269
 
 
-def test_a_missing_delivery_counts_as_zero_after_the_delivery_deadline(env):
+def test_a_missing_delivery_cannot_pass_after_the_delivery_deadline(env):
     mod, gl, c = env
     open_b(gl, c, promised="2", bar="50")
     deliver(gl, c)
@@ -336,15 +337,15 @@ def test_a_missing_delivery_counts_as_zero_after_the_delivery_deadline(env):
     with pytest.raises(mod.gl.vm.UserError, match="still open"):
         c.settle("b1")
     advance(gl, 2 * HOUR)
-    out = settle(gl, c)  # 90 < 50 * 2 = 100
-    assert out["total"] == 90 and out["status"] == "breached"
+    out = settle(gl, c)
+    assert out["status"] == "breached" and out["passed"] == 1 and out["required"] == 2
 
 
 def test_a_bond_with_no_delivery_at_all_is_breached(env):
     mod, gl, c = env
     open_b(gl, c, promised="1")
     advance(gl, 2 * HOUR)
-    assert settle(gl, c)["status"] == "breached" and bond(c)["total_score"] == 0
+    assert settle(gl, c)["status"] == "breached" and bond(c)["passed"] == 0
 
 
 def test_settle_waits_for_every_delivery_made_to_be_scored(env):
@@ -768,3 +769,59 @@ def test_the_books_balance_through_a_random_run(env):
     except mod.gl.vm.UserError:
         pass
     assert books(gl, c)
+
+
+# -- the validators must agree on what can change settlement ----------------------------------
+
+
+def test_the_consensus_principle_binds_passes_not_only_a_score_spread(env):
+    mod, gl, c = env
+    open_b(gl, c, bar="70")
+    deliver(gl, c)
+    seen = []
+    original = gl.eq_principle.prompt_comparative
+
+    def spy(fn, principle="", /):
+        seen.append(principle)
+        return fn()
+
+    gl.eq_principle.prompt_comparative = spy
+    try:
+        score(gl, c)
+    finally:
+        gl.eq_principle.prompt_comparative = original
+    assert (
+        "`passes`" in seen[0] and "identical" in seen[0] and "opposite sides of the bar" in seen[0]
+    )
+
+
+@pytest.mark.parametrize("s,passes", [(0, False), (69, False), (70, True), (71, True), (100, True)])
+def test_the_leader_answer_carries_passes_exactly_at_the_bar(env, s, passes):
+    mod, gl, c = env
+    open_b(gl, c, bar="70")
+    deliver(gl, c)
+    gl.llm_reply = reply(s)
+    score(gl, c)
+    r = json.loads(c.get_round("b1", 1, 1))
+    assert r["score"] == s and r["passes"] is passes
+
+
+def test_a_consensus_answer_whose_passes_contradicts_its_score_fails_the_contracts_check(env):
+    mod, gl, c = env
+    open_b(gl, c, bar="70")
+    deliver(gl, c)
+    original = gl.eq_principle.prompt_comparative
+    gl.eq_principle.prompt_comparative = lambda fn, principle="", /: json.dumps(
+        {"finding": "scored", "score": 40, "passes": True, "reason": ""}
+    )
+    try:
+        as_(gl, STRANGER)
+        with pytest.raises(mod.gl.vm.UserError, match="own check"):
+            c.score("b1", 1)
+    finally:
+        gl.eq_principle.prompt_comparative = original
+    assert json.loads(c.get_delivery("b1", 1))["rounds"] == 0
+
+
+def test_the_bond_no_longer_keeps_a_total_threshold():
+    assert "needed_score" not in SOURCE and "passes_required" in SOURCE
